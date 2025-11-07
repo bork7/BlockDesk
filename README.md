@@ -1,4 +1,4 @@
-Welcome to BlockDeskt
+Welcome to BlockDesk
 
 # Getting Started
 
