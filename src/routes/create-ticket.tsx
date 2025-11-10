@@ -71,7 +71,7 @@ function CreateTicket() {
   };
 
   const uploadToIPFS = async (file: File): Promise<string> => {
-    // Mock IPFS upload - need to use actual service later like Pinata or something
+    // Mock IPFS upload - need to use actual service later like Web3.Storage
     setUploadingToIPFS(true);
     
     try {
@@ -110,11 +110,11 @@ function CreateTicket() {
       // Save back to localStorage
       localStorage.setItem('blockdesk-tickets', JSON.stringify(updatedTickets));
       
-      // Create a fake transaction hash for demo
+      // Create a mock transaction hash for demo
       const mockTxHash = `0x${Math.random().toString(16).substring(2, 66)}`;
       return mockTxHash;
       
-      /* will need this when contract is deployed:
+      /* Original blockchain code - uncomment this when contract is deployed:
       if (!contract) {
         throw new Error('Smart contract not connected');
       }
