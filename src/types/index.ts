@@ -28,7 +28,6 @@ export interface TicketEvent {
 
 export enum UserRole {
   USER = "User",
-  AGENT = "Agent", 
   MANAGER = "Manager"
 }
 

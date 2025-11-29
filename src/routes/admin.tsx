@@ -253,7 +253,7 @@ function AdminPanel() {
   };
 
   // Check if user has admin privileges
-  if (!user || (user.role !== UserRole.MANAGER && user.role !== UserRole.AGENT)) {
+  if (!user || user.role !== UserRole.MANAGER) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
@@ -265,7 +265,7 @@ function AdminPanel() {
               Access Denied
             </h2>
             <p className="text-red-700 mb-4">
-              You need Manager or Admin privileges to access the admin panel.
+              You need Manager privileges to access the admin panel.
             </p>
             <Button onClick={() => navigate({ to: '/dashboard' })}>
               Back to Dashboard

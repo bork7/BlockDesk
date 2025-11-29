@@ -183,10 +183,7 @@ function TicketDetails() {
   };
 
   const canUpdateStatus = () => {
-    return user && (
-      user.role === UserRole.AGENT || 
-      user.role === UserRole.MANAGER
-    ) && ticket?.status !== TicketStatus.CLOSED;
+    return user && user.role === UserRole.MANAGER && ticket?.status !== TicketStatus.CLOSED;
   };
 
   const getNextStatuses = () => {
