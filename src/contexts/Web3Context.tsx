@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useState, ReactNode } from 'react';
+﻿import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ethers } from 'ethers';
 import { User, UserRole } from '../types';
 
@@ -38,36 +38,25 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         
         // Determine role based on wallet address (demo purposes)
         const getUserRole = (address: string): UserRole => {
-          // Manager addresses (full admin access) - SPECIFIC ADDRESSES ONLY
+          // Manager addresses (full admin access)
           const managerAddresses = [
-            '0x2580fd5d3652b9fce4c7f14f30bbb77e5aeafd7d', // Your wallet address - ADMIN
-            // Add more specific manager addresses here if needed
-          ];
-          
-          // Agent addresses (can assign tickets to themselves, update status)  
-          const agentAddresses: string[] = [
-            // Add agent wallet addresses here if you want to test agent role
-            // '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            '0x2580fd5d3652b9fce4c7f14f30bbb77e5aeafd7d',
+            '0xaafe300907bea569970928719c88948e2b56915e',
+            // Add more manager addresses here if needed
           ];
           
           // Demo mode: Check URL params for role override (for easy testing)
           const urlParams = new URLSearchParams(window.location.search);
           const roleParam = urlParams.get('role');
           if (roleParam === 'user') return UserRole.USER;
-          if (roleParam === 'agent') return UserRole.AGENT;
           if (roleParam === 'manager') return UserRole.MANAGER;
           
-          // Check if address matches your specific admin wallet
+          // Check if address matches manager wallet
           if (managerAddresses.includes(address.toLowerCase())) {
             return UserRole.MANAGER;
           }
           
-          // Check if address is an agent
-          if (agentAddresses.includes(address.toLowerCase())) {
-            return UserRole.AGENT;
-          }
-          
-          // Default to regular user for any other wallet
+          // Default to regular user
           return UserRole.USER;
         };
         
@@ -92,6 +81,28 @@ export function Web3Provider({ children }: { children: ReactNode }) {
     setSigner(null);
     setContract(null);
   };
+
+  // Listen for account changes in MetaMask
+  useEffect(() => {
+    if (window.ethereum && isConnected) {
+      const handleAccountsChanged = async (accounts: string[]) => {
+        if (accounts.length === 0) {
+          // User disconnected their wallet
+          disconnectWallet();
+        } else if (accounts[0] !== user?.address) {
+          // Account switched - disconnect and require reconnection
+          disconnectWallet();
+          alert('MetaMask account changed. Please connect your wallet again.');
+        }
+      };
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
+    }
+  }, [user?.address, isConnected]);
 
   const value: Web3ContextType = {
     isConnected,
