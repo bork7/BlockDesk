@@ -29,7 +29,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // User data - stores address, role (User/Manager), and ETH balance
+  // User data - stores address, role, and ETH balance
   const [user, setUser] = useState<User | null>(null);
   
   // Web3 objects for blockchain interaction
@@ -37,7 +37,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null); // Can sign transactions
   const [contract, setContract] = useState<ethers.Contract | null>(null); // BlockDesk smart contract instance
 
-  // Connect to MetaMask and initialize Web3 connection
   // Connect to MetaMask and initialize Web3 connection
   const connectWallet = async () => {
     console.log('=== Starting MetaMask Connection ===');
@@ -61,7 +60,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         const address = accounts[0];
         console.log('User address:', address);
         
-        // Set basic connection immediately (fast response for user)
+        // Set basic connection immediately
         setUser({
           address: address,
           role: UserRole.USER,
@@ -70,7 +69,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         setIsConnected(true);
         console.log('=== Basic Connection Successful ===');
         
-        // Load blockchain data in background (with slight delay to avoid blocking UI)
+        // Load blockchain data in background
         setTimeout(async () => {
           try {
             console.log('Creating provider...');
@@ -96,7 +95,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
             
             if (deployedNetwork) {
               console.log('Contract found at:', deployedNetwork.address);
-              // Create contract instance with signer (so we can call functions)
+              // Create contract instance with signer
               blockDeskContract = new ethers.Contract(
                 deployedNetwork.address,
                 BlockDeskArtifact.abi,
@@ -104,7 +103,7 @@ export function Web3Provider({ children }: { children: ReactNode }) {
               );
 
               try {
-                // Check if user has Manager role (1) or User role (0)
+                // Check if user has Manager role or User role 
                 const roleIdx = await blockDeskContract.userRoles(address);
                 role = Number(roleIdx) === 1 ? UserRole.MANAGER : UserRole.USER;
                 console.log('User role:', role);
@@ -148,7 +147,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   };
 
   // Clear all connection data when user disconnects
-  // Clear all connection data when user disconnects
   const disconnectWallet = () => {
     setIsConnected(false);
     setUser(null);
@@ -164,8 +162,6 @@ export function Web3Provider({ children }: { children: ReactNode }) {
         // If no accounts or different account, disconnect current session
         if (accounts.length === 0 || (user && accounts[0].toLowerCase() !== user.address.toLowerCase())) {
           disconnectWallet();
-          // Optional: Automatically reconnect with new account
-          // connectWallet(); 
         }
       };
       window.ethereum.on('accountsChanged', handleAccountsChanged);

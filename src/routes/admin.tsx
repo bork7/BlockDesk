@@ -75,8 +75,7 @@ function AdminPanel() {
     setActioningId(ticketId);
     try {
       addNotification({ type: 'info', title: 'Confirm Assignment', message: 'Please confirm in MetaMask', duration: 0 });
-      // Added gasLimit for safety
-      const tx = await contract.assignTicket(ticketId, assignee, { gasLimit: 500000 });
+      const tx = await contract.assignTicket(ticketId, assignee);
       await tx.wait();
       addNotification({ type: 'success', title: 'Ticket Assigned', message: `Ticket #${ticketId} assigned.` });
       loadAdminData();
@@ -92,7 +91,7 @@ function AdminPanel() {
     if (!contract) return;
     setActioningId(ticketId);
     try {
-      const tx = await contract.resolveTicket(ticketId, { gasLimit: 500000 });
+      const tx = await contract.resolveTicket(ticketId);
       await tx.wait();
       addNotification({ type: 'success', title: 'Ticket Resolved', message: `Ticket #${ticketId} resolved.` });
       loadAdminData();
@@ -107,7 +106,7 @@ function AdminPanel() {
     if (!contract) return;
     setActioningId(ticketId);
     try {
-      const tx = await contract.closeTicket(ticketId, { gasLimit: 500000 });
+      const tx = await contract.closeTicket(ticketId);
       await tx.wait();
       addNotification({ type: 'success', title: 'Ticket Closed', message: `Ticket #${ticketId} closed.` });
       loadAdminData();
@@ -122,7 +121,7 @@ function AdminPanel() {
     if (!contract) return;
     setActioningId(ticketId);
     try {
-      const tx = await contract.reopenTicket(ticketId, { gasLimit: 500000 });
+      const tx = await contract.reopenTicket(ticketId);
       await tx.wait();
       addNotification({ type: 'success', title: 'Ticket Reopened', message: `Ticket #${ticketId} reopened.` });
       loadAdminData();

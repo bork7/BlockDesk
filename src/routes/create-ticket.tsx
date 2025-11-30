@@ -94,13 +94,12 @@ function CreateTicket() {
         formData.title,
         descriptionHash, // Store IPFS hash instead of description text
         attachmentHash || '',
-        { gasLimit: 500000 }
       );
 
       // Wait for receipt to ensure block is mined
       const receipt = await tx.wait();
       
-      // Optional: Log the receipt to see the new Ticket ID
+      // Log the receipt to see the new Ticket ID
       console.log("Transaction Receipt:", receipt);
       
       return tx.hash;
@@ -222,9 +221,9 @@ function CreateTicket() {
   if (!isConnected || !user) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+        <div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-            <div className="text-yellow-600 mb-2">
+            <div className="text-yellow-600 mb-4">
               <User size={48} className="mx-auto mb-4" />
             </div>
             <h2 className="text-xl font-semibold text-yellow-800 mb-2">

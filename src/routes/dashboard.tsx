@@ -33,20 +33,41 @@ function Dashboard() {
     setLoading(true);
     try {
       if (contract) {
-        const rawTickets = await contract.getAllTickets();
-        
-        const formattedTickets: Ticket[] = rawTickets.map((t: any) => ({
-          id: t.id.toString(),
-          title: t.title,
-          description: t.description,
-          status: mapStatus(Number(t.status)) as TicketStatus,
-          creator: t.creator,
-          assignedTo: t.assignedTo === '0x0000000000000000000000000000000000000000' ? undefined : t.assignedTo,
-          attachment: t.attachmentHash,
-          createdAt: Number(t.createdAt) * 1000,
-        }));
-        
-        setTickets(formattedTickets.reverse());
+        // Fetch Live Data
+        const liveTicketData = await contract.getAllTickets();
+
+        // Fetch Static Data from Events
+        const filter = contract.filters.TicketCreated();
+        const eventLogs = await contract.queryFilter(filter);
+
+        // Merge and Format Data
+        const formattedTickets = eventLogs.map((log: any): Ticket | null => {
+          const { ticketId, title, description, attachmentHash } = log.args;
+          
+          // Find corresponding live data
+          const liveState = liveTicketData.find((t: any) => t.id.toString() === ticketId.toString());
+          
+          if (!liveState) return null;
+
+          // Construct the Ticket object
+          return {
+            id: ticketId.toString(),
+            title: title,
+            description: description,
+            attachment: attachmentHash,
+            status: mapStatus(Number(liveState.status)) as TicketStatus,
+            creator: liveState.creator,
+            // Handle the address(0) check for unassigned tickets
+            assignedTo: liveState.assignedTo === '0x0000000000000000000000000000000000000000' 
+              ? undefined 
+              : liveState.assignedTo,
+            createdAt: Number(liveState.createdAt) * 1000,
+          };
+        }).filter((t): t is Ticket => t !== null);
+
+        // 4. Set State (Safe Reverse)
+        // Use spread syntax to reverse a copy of the array
+        setTickets([...formattedTickets].reverse());
       }
     } catch (error) {
       console.error('Error loading tickets:', error);
@@ -55,15 +76,19 @@ function Dashboard() {
     }
   };
 
-  const filterTickets = () => {
+const filterTickets = () => {
     let filtered = [...tickets];
+    
     if (filter === 'my' && user) {
+      // Show ticket if I am the ASSIGNEE or CREATOR
       filtered = filtered.filter(ticket => 
-        ticket.assignedTo?.toLowerCase() === user.address.toLowerCase()
+        ticket.assignedTo?.toLowerCase() === user.address.toLowerCase() ||
+        ticket.creator.toLowerCase() === user.address.toLowerCase()
       );
     } else if (filter === 'open') {
       filtered = filtered.filter(ticket => ticket.status === TicketStatus.OPEN);
     }
+    
     if (searchTerm) {
       filtered = filtered.filter(ticket =>
         ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

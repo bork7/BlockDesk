@@ -32,7 +32,7 @@ function TicketDetails() {
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
   
-  // Component state - stores ticket data and UI state
+  // Component states
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [ticketEvents, setTicketEvents] = useState<TicketEvent[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -54,54 +54,68 @@ function TicketDetails() {
   }, [ticketId, contract]);
 
   // Fetch ticket details from blockchain and IPFS
-  // Fetch ticket details from blockchain and IPFS
   const loadTicketDetails = async () => {
     setLoading(true);
     try {
       if (!contract) return;
       
-      // Get ticket data from smart contract
+      // Fetch "Live" State Data from Smart Contract
+      // This is cheap and fast, but lacks the title and description now
       const rawTicket = await contract.getTicket(ticketId);
       
       if (rawTicket.id.toString() === "0") {
         throw new Error('Ticket not found');
       }
 
-      // Description is stored as IPFS hash, retrieve the actual text from localStorage
-      let descriptionText = rawTicket.description;
+      // Fetch Static Data from Event Logs
+      // We look for the "TicketCreated" event for this specific ID
+      const filter = contract.filters.TicketCreated(ticketId);
+      const events = await contract.queryFilter(filter);
+
+      if (events.length === 0) {
+        throw new Error('Ticket creation event not found');
+      }
+
+      // Extract data from the event arguments
+      // events[0].args contains [ticketId, creator, attachmentHash]
+      const eventArgs = (events[0] as any).args;
+      const titleFromEvent = eventArgs.title;
+      const descriptionFromEvent = eventArgs.description;
+      const attachmentFromEvent = eventArgs.attachmentHash;
+
+      // Handle IPFS Logic
+      let descriptionText = descriptionFromEvent;
       let isFromIPFS = false;
       
-      // Check if description is an IPFS hash (starts with Qm)
-      if (rawTicket.description.startsWith('Qm')) {
-        const storedDescription = localStorage.getItem(`ipfs_${rawTicket.description}`);
+      if (descriptionFromEvent && descriptionFromEvent.startsWith('Qm')) {
+        const storedDescription = localStorage.getItem(`ipfs_${descriptionFromEvent}`);
         if (storedDescription) {
           descriptionText = storedDescription;
           isFromIPFS = true;
         }
       }
 
-      // Format the ticket data for display
+      // 4. Merge Data (State and Event)
       const formattedTicket: Ticket = {
         id: rawTicket.id.toString(),
-        title: rawTicket.title,
+        
+        // Data from Event 
+        title: titleFromEvent,
         description: descriptionText,
+        attachment: attachmentFromEvent,
+        
+        // Data from Struct
         status: mapStatus(Number(rawTicket.status)) as TicketStatus,
         creator: rawTicket.creator,
-        assignedTo: rawTicket.assignedTo === '0x0000000000000000000000000000000000000000' ? undefined : rawTicket.assignedTo,
-        attachment: rawTicket.attachmentHash,
+        assignedTo: rawTicket.assignedTo === '0x0000000000000000000000000000000000000000' 
+          ? undefined 
+          : rawTicket.assignedTo,
         createdAt: Number(rawTicket.createdAt) * 1000,
       };
       
       setDescriptionFromIPFS(isFromIPFS);
-      
-      if (isFromIPFS) {
-        console.log('✓ Description loaded from IPFS');
-      }
-      if (formattedTicket.attachment) {
-        console.log('✓ Attachment stored in IPFS');
-      }
-      
       setTicket(formattedTicket);
+
     } catch (error) {
       console.error('Error loading ticket:', error);
     } finally {
@@ -109,7 +123,7 @@ function TicketDetails() {
     }
   };
 
-  // Fetch ticket history (all events) from blockchain event logs
+  // Fetch ticket history from blockchain event logs
   const loadTicketHistory = async () => {
     if (!contract) return;
     try {
@@ -118,7 +132,7 @@ function TicketDetails() {
       const filterStatus = contract.filters.StatusUpdated(ticketId);
       const filterAssigned = contract.filters.TicketAssigned(ticketId);
 
-      // Query all event types in parallel for efficiency
+      // Query all event types in parallel
       const [createdLogs, statusLogs, assignedLogs] = await Promise.all([
         contract.queryFilter(filterCreated),
         contract.queryFilter(filterStatus),
@@ -140,7 +154,7 @@ function TicketDetails() {
         });
       }
 
-      // Process status change events (Open → In Progress → Resolved → Closed)
+      // Process status change events (Open -> In Progress -> Resolved -> Closed -> etc)
       for (const log of statusLogs) {
         const block = await log.getBlock();
         const statusIdx = Number((log as any).args[1]);
@@ -154,21 +168,21 @@ function TicketDetails() {
         });
       }
 
-      // Process ticket assignment/reassignment events
+      // Process ticket assignment and reassignment events
       for (const log of assignedLogs) {
         const block = await log.getBlock();
         events.push({
           id: log.transactionHash,
           ticketId,
           eventType: 'Ticket Assigned',
-          actor: (log as any).args[2], // Who performed the assignment
+          actor: (log as any).args[2], 
           timestamp: block.timestamp * 1000,
           transactionHash: log.transactionHash,
-          data: { assignee: (log as any).args[1] } // Who the ticket was assigned to
+          data: { assignee: (log as any).args[1] } 
         });
       }
 
-      // Sort events by timestamp (newest first) and update state
+      // Sort events by timestamp
       setTicketEvents(events.sort((a, b) => b.timestamp - a.timestamp));
     } catch (e) {
       console.warn("Could not fetch history:", e);
@@ -184,7 +198,7 @@ function TicketDetails() {
       const formattedComments: Comment[] = rawComments.map((c: any) => {
         let commentText = c.content;
         
-        // Comment content is stored as IPFS hash, retrieve actual text from localStorage
+        // Comment content is stored as IPFS hash. (TEMP) retrieve actual text from localStorage
         if (c.content.startsWith('Qm')) {
           const stored = localStorage.getItem(`ipfs_${c.content}`);
           if (stored) {
@@ -212,7 +226,7 @@ function TicketDetails() {
     }
   };
 
-  // Submit a new comment - uploads to IPFS then stores hash on blockchain
+  // Submit a new comment, uploads to IPFS then stores hash on blockchain
   const handleAddComment = async () => {
     if (!contract || !newComment.trim()) return;
     setSubmittingComment(true);
@@ -221,12 +235,12 @@ function TicketDetails() {
       const commentResult = await uploadTextToIPFS(newComment);
       const commentHash = commentResult.hash;
       
-      // Store actual comment text in localStorage (keyed by IPFS hash)
+      // Store actual comment text in localStorage
       localStorage.setItem(`ipfs_${commentHash}`, newComment);
       console.log('✓ Comment uploaded to IPFS');
       
-      // Store only the IPFS hash on blockchain (saves gas)
-      const tx = await contract.addComment(ticketId, commentHash, { gasLimit: 500000 });
+      // Store only the IPFS hash on blockchain to save gas
+      const tx = await contract.addComment(ticketId, commentHash);
       await tx.wait();
       addNotification({ type: 'success', title: 'Comment Added', message: 'Your comment has been posted' });
       setNewComment('');
@@ -239,14 +253,13 @@ function TicketDetails() {
     }
   };
 
-  // User clicks "Start Work" - assigns ticket to themselves and marks as In Progress
+  // User clicks "Start Work"
   const handleStartWork = async () => {
     if (!contract || !user) return;
     setUpdating(true);
     try {
-      // Calling assignTicket with current user address
       // This sets status to InProgress and assignedTo to user
-      const tx = await contract.assignTicket(ticketId, user.address, { gasLimit: 500000 });
+      const tx = await contract.assignTicket(ticketId, user.address);
       await tx.wait();
       
       addNotification({ type: 'success', title: 'Work Started', message: 'Ticket assigned to you and marked In Progress' });
@@ -260,7 +273,7 @@ function TicketDetails() {
     }
   };
 
-  // Update ticket status - calls different contract functions depending on status
+  // Update ticket status
   const handleUpdateStatus = async (newStatus: TicketStatus) => {
     if (!contract) return;
     setUpdating(true);
@@ -274,7 +287,7 @@ function TicketDetails() {
       } else if (newStatus === TicketStatus.CLOSED) {
         tx = await contract.closeTicket(ticketId, options);
       } else {
-        // For other statuses (OPEN, IN_PROGRESS), use updateStatus with index
+        // Use updateStatus with index
         let statusIdx = 0;
         if(newStatus === TicketStatus.IN_PROGRESS) statusIdx = 1;
         tx = await contract.updateStatus(ticketId, statusIdx, options);
@@ -296,7 +309,7 @@ function TicketDetails() {
     if (!contract || !reassignAddress.trim()) return;
     setUpdating(true);
     try {
-      const tx = await contract.assignTicket(ticketId, reassignAddress, { gasLimit: 500000 });
+      const tx = await contract.assignTicket(ticketId, reassignAddress);
       await tx.wait();
       addNotification({ type: 'success', title: 'Ticket Reassigned', message: 'Ticket has been reassigned successfully' });
       setShowReassignDialog(false);
