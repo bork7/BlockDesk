@@ -1,5 +1,7 @@
 const PINATA_JWT = import.meta.env.VITE_PINATA_JWT;
-const PINATA_GATEWAY = import.meta.env.VITE_PINATA_GATEWAY;
+const PINATA_GATEWAY =
+  import.meta.env.VITE_PINATA_GATEWAY ||
+  "https://emerald-elegant-wolf-980.mypinata.cloud/ipfs/";
 
 export async function uploadToIPFS(file: File) {
   if (!PINATA_JWT) throw new Error("Missing Pinata JWT");
@@ -10,9 +12,9 @@ export async function uploadToIPFS(file: File) {
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PINATA_JWT}`
+      Authorization: `Bearer ${PINATA_JWT}`,
     },
-    body: form
+    body: form,
   });
 
   if (!res.ok) throw new Error("Pinata file upload failed");
@@ -20,7 +22,7 @@ export async function uploadToIPFS(file: File) {
   const data = await res.json();
   return {
     hash: data.IpfsHash,
-    url: `${PINATA_GATEWAY}${data.IpfsHash}`
+    url: `${PINATA_GATEWAY}${data.IpfsHash}`,
   };
 }
 
@@ -34,9 +36,9 @@ export async function uploadTextToIPFS(text: string) {
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${PINATA_JWT}`
+      Authorization: `Bearer ${PINATA_JWT}`,
     },
-    body: form
+    body: form,
   });
 
   if (!res.ok) throw new Error("Pinata text upload failed");
@@ -44,6 +46,16 @@ export async function uploadTextToIPFS(text: string) {
   const data = await res.json();
   return {
     hash: data.IpfsHash,
-    url: `${PINATA_GATEWAY}${data.IpfsHash}`
+    url: `${PINATA_GATEWAY}${data.IpfsHash}`,
   };
+}
+
+export function getIPFSUrl(hash: string): string {
+  if (!hash) return "";
+  if (hash.startsWith("http")) return hash;
+  return `${PINATA_GATEWAY}${hash.replace("ipfs://", "")}`;
+}
+
+export function isIPFSHash(str: string): boolean {
+  return /^Qm[1-9A-Za-z]{44}|bafy[A-Za-z0-9]{50,}/.test(str);
 }

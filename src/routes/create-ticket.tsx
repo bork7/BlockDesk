@@ -94,17 +94,21 @@ function CreateTicket() {
     }
   };
 
-  const submitTicket = async (descriptionHash: string, attachmentHash?: string) => {
-    if (!contract) throw new Error('Smart contract not connected.');
-    const tx = await contract.createTicket(
-      formData.title,
-      descriptionHash,
-      attachmentHash || '',
-      { gasLimit: 500000 }
-    );
-    const receipt = await tx.wait();
-    return tx.hash;
-  };
+const submitTicket = async (descriptionHash: string, attachmentHash?: string) => {
+  if (!contract) throw new Error('Smart contract not connected.');
+
+  // Ethers v6: overrides MUST be the last argument
+  const tx = await contract.createTicket(
+    formData.title,
+    descriptionHash,
+    attachmentHash || ''
+    // No overrides needed with Ganache
+  );
+
+  const receipt = await tx.wait();
+  return tx.hash;
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
