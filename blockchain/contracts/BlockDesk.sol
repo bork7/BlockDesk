@@ -5,40 +5,53 @@ contract BlockDesk {
     enum TicketStatus { Open, InProgress, Resolved, Closed }
     enum UserRole { User, Manager }
     
+    // Packed Struct + No Strings
+    // This struct now only uses 3 Storage Slots (down from ~10+)
     struct Ticket {
-        uint256 id;
-        address creator;
-        address assignedTo; // Changed from assignedAgent
-        string title;
-        string description;
-        string attachmentHash;
-        TicketStatus status;
-        uint256 createdAt;
-        uint256 updatedAt;
+        // SLOT 1 (20 + 8 + 1 = 29 bytes) 
+        address creator;      // 20 bytes 
+        uint64 createdAt;     // 8 bytes 
+        TicketStatus status;  // 1 byte 
+        
+        // SLOT 2 (20 + 8 = 28 bytes) 
+        address assignedTo;   // 20 bytes
+        uint64 updatedAt;     // 8 bytes
+
+        // SLOT 3 (32 bytes) 
+        uint256 id;           // 32 bytes
     }
     
     struct Comment {
         uint256 id;
         uint256 ticketId;
         address author;
-        string content;
+        string content; // Comments still kept on-chain for now, or could be optimized similarly
         uint256 createdAt;
     }
     
     mapping(uint256 => Ticket) public tickets;
     mapping(address => UserRole) public userRoles;
-    mapping(uint256 => Comment[]) public ticketComments; // ticketId => array of comments
+    mapping(uint256 => Comment[]) public ticketComments;
+
     uint256 public nextTicketId = 1;
     uint256 public nextCommentId = 1;
+
+    // Store data in Events instead of State
+    event TicketCreated(
+        uint256 indexed ticketId, 
+        address indexed creator, 
+        string title, 
+        string description, 
+        string attachmentHash
+    );
     
-    event TicketCreated(uint256 indexed ticketId, address indexed creator, string title);
     event StatusUpdated(uint256 indexed ticketId, TicketStatus status, address indexed updater);
     event TicketAssigned(uint256 indexed ticketId, address indexed assignee, address indexed assigner);
     event TicketReopened(uint256 indexed ticketId, address indexed reopener);
     event CommentAdded(uint256 indexed ticketId, uint256 indexed commentId, address indexed author);
-    
+
     constructor() {
-        userRoles[msg.sender] = UserRole.Manager; // Contract deployer is manager
+        userRoles[msg.sender] = UserRole.Manager;
     }
     
     modifier onlyManager() {
@@ -46,26 +59,27 @@ contract BlockDesk {
         _;
     }
     
+    // Use 'calldata' instead of 'memory' for read-only string args
     function createTicket(
-        string memory title,
-        string memory description,
-        string memory attachmentHash
+        string calldata title,
+        string calldata description,
+        string calldata attachmentHash
     ) external returns (uint256) {
         uint256 ticketId = nextTicketId++;
         
+        // Write only essential data to storage
         tickets[ticketId] = Ticket({
-            id: ticketId,
             creator: msg.sender,
-            assignedTo: address(0),
-            title: title,
-            description: description,
-            attachmentHash: attachmentHash,
+            createdAt: uint64(block.timestamp),
             status: TicketStatus.Open,
-            createdAt: block.timestamp,
-            updatedAt: block.timestamp
+            assignedTo: address(0),
+            updatedAt: uint64(block.timestamp),
+            id: ticketId
         });
+
+        // Emit heavy data to the logs
+        emit TicketCreated(ticketId, msg.sender, title, description, attachmentHash);
         
-        emit TicketCreated(ticketId, msg.sender, title);
         return ticketId;
     }
     
@@ -77,42 +91,42 @@ contract BlockDesk {
             userRoles[msg.sender] == UserRole.Manager,
             "Not authorized"
         );
-        
+
         tickets[ticketId].status = status;
-        tickets[ticketId].updatedAt = block.timestamp;
+        tickets[ticketId].updatedAt = uint64(block.timestamp);
         
         emit StatusUpdated(ticketId, status, msg.sender);
     }
     
-    // Only Managers can be assigned tickets now
     function assignTicket(uint256 ticketId, address assignee) external onlyManager {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
-        // Ensure the assignee is a Manager (or allow assigning to self if Manager)
         require(userRoles[assignee] == UserRole.Manager, "Can only assign to Managers");
         
         tickets[ticketId].assignedTo = assignee;
         tickets[ticketId].status = TicketStatus.InProgress;
-        tickets[ticketId].updatedAt = block.timestamp;
+        tickets[ticketId].updatedAt = uint64(block.timestamp);
         
         emit TicketAssigned(ticketId, assignee, msg.sender);
     }
 
-    // Only Managers can resolve tickets
     function resolveTicket(uint256 ticketId) external onlyManager {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
+        
         tickets[ticketId].status = TicketStatus.Resolved;
-        tickets[ticketId].updatedAt = block.timestamp;
+        tickets[ticketId].updatedAt = uint64(block.timestamp);
+        
         emit StatusUpdated(ticketId, TicketStatus.Resolved, msg.sender);
     }
 
     function closeTicket(uint256 ticketId) external onlyManager {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
+        
         tickets[ticketId].status = TicketStatus.Closed;
-        tickets[ticketId].updatedAt = block.timestamp;
+        tickets[ticketId].updatedAt = uint64(block.timestamp);
+        
         emit StatusUpdated(ticketId, TicketStatus.Closed, msg.sender);
     }
     
-    // New: Reopen a closed or resolved ticket
     function reopenTicket(uint256 ticketId) external onlyManager {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
         require(
@@ -120,19 +134,20 @@ contract BlockDesk {
             tickets[ticketId].status == TicketStatus.Resolved,
             "Only closed or resolved tickets can be reopened"
         );
-        
+
         tickets[ticketId].status = TicketStatus.Open;
-        tickets[ticketId].assignedTo = address(0); // Clear assignment
-        tickets[ticketId].updatedAt = block.timestamp;
+        tickets[ticketId].assignedTo = address(0);
+        tickets[ticketId].updatedAt = uint64(block.timestamp);
+        
         emit TicketReopened(ticketId, msg.sender);
     }
     
-    // New: Add a comment to a ticket
     function addComment(uint256 ticketId, string memory content) external {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
         require(bytes(content).length > 0, "Comment cannot be empty");
         
         uint256 commentId = nextCommentId++;
+        
         Comment memory newComment = Comment({
             id: commentId,
             ticketId: ticketId,
@@ -145,7 +160,6 @@ contract BlockDesk {
         emit CommentAdded(ticketId, commentId, msg.sender);
     }
     
-    // Get all comments for a ticket
     function getTicketComments(uint256 ticketId) external view returns (Comment[] memory) {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
         return ticketComments[ticketId];
@@ -155,6 +169,8 @@ contract BlockDesk {
         userRoles[user] = role;
     }
     
+    // This no longer returns title/description. 
+    // Frontend must fetch these from 'TicketCreated' events.
     function getTicket(uint256 ticketId) external view returns (Ticket memory) {
         require(tickets[ticketId].id != 0, "Ticket does not exist");
         return tickets[ticketId];
