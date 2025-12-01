@@ -297,7 +297,7 @@ function TicketDetails() {
       else if (newStatus === TicketStatus.RESOLVED) statusIdx = 2;
       else if (newStatus === TicketStatus.CLOSED) statusIdx = 3;
       
-      const tx = await contract.updateStatus(ticketId, statusIdx, { gasLimit: 100000 });
+      const tx = await contract.updateStatus(ticketId, statusIdx, { gasLimit: 50000 });
       await tx.wait();
       addNotification({ type: 'success', title: 'Updated', message: `Status changed to ${newStatus}` });
       loadTicketDetails();
@@ -333,7 +333,7 @@ function TicketDetails() {
     if (!contract) return;
     setUpdating(true);
     try {
-      const tx = await contract.reopenTicket(ticketId, { gasLimit: 100000 });
+      const tx = await contract.reopenTicket(ticketId, { gasLimit: 50000 });
       await tx.wait();
       addNotification({ type: 'success', title: 'Ticket Reopened', message: 'Ticket has been reopened and assigned to you' });
       loadTicketDetails();
