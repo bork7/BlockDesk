@@ -1,59 +1,7 @@
 // IPFS utility functions
 // Using browser-based approach with base64 encoding for demo purposes
 
-<<<<<<< HEAD
-export async function uploadToIPFS(file: File) {
-  if (!PINATA_JWT) throw new Error("Missing Pinata JWT");
 
-  const form = new FormData();
-  form.append("file", file);
-
-  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${PINATA_JWT}` },
-    body: form
-  });
-
-  if (!res.ok) throw new Error("Pinata file upload failed");
-
-  const data = await res.json();
-  return {
-    hash: data.IpfsHash,
-    url: getIPFSUrl(data.IpfsHash)
-  };
-}
-
-export async function uploadTextToIPFS(text: string) {
-  if (!PINATA_JWT) throw new Error("Missing Pinata JWT");
-
-  const blob = new Blob([text], { type: "text/plain" });
-  const form = new FormData();
-  form.append("file", blob, "content.txt");
-
-  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${PINATA_JWT}` },
-    body: form
-  });
-
-  if (!res.ok) throw new Error("Pinata text upload failed");
-
-  const data = await res.json();
-  return {
-    hash: data.IpfsHash,
-    url: getIPFSUrl(data.IpfsHash)
-  };
-}
-
-export function isIPFSHash(str: string): boolean {
-  return /^[A-Za-z0-9]{46,}$/.test(str);
-}
-
-export function getIPFSUrl(cid: string): string {
-  if (!cid) return "";
-  return `${PINATA_GATEWAY}${cid}`;
-}
-=======
 export interface IPFSUploadResult {
   hash: string;
   url: string;
@@ -162,4 +110,56 @@ export function isIPFSHash(str: string): boolean {
 //    return { hash: cid, url: `https://ipfs.io/ipfs/${cid}` }
 //
 // OR use NFT.Storage which doesn't require API key for uploads
->>>>>>> 3267921fade00f07fc91f3b9825e5d7a0eb32730
+=========
+export async function uploadToIPFS(file: File) {
+  if (!PINATA_JWT) throw new Error("Missing Pinata JWT");
+
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${PINATA_JWT}` },
+    body: form
+  });
+
+  if (!res.ok) throw new Error("Pinata file upload failed");
+
+  const data = await res.json();
+  return {
+    hash: data.IpfsHash,
+    url: getIPFSUrl(data.IpfsHash)
+  };
+}
+
+export async function uploadTextToIPFS(text: string) {
+  if (!PINATA_JWT) throw new Error("Missing Pinata JWT");
+
+  const blob = new Blob([text], { type: "text/plain" });
+  const form = new FormData();
+  form.append("file", blob, "content.txt");
+
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${PINATA_JWT}` },
+    body: form
+  });
+
+  if (!res.ok) throw new Error("Pinata text upload failed");
+
+  const data = await res.json();
+  return {
+    hash: data.IpfsHash,
+    url: getIPFSUrl(data.IpfsHash)
+  };
+}
+
+export function isIPFSHash(str: string): boolean {
+  return /^[A-Za-z0-9]{46,}$/.test(str);
+}
+
+export function getIPFSUrl(cid: string): string {
+  if (!cid) return "";
+  return `${PINATA_GATEWAY}${cid}`;
+}
+>>>>>>>>> Temporary merge branch 2
