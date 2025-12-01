@@ -279,14 +279,20 @@ function TicketDetails() {
     if (!contract) return;
     setUpdating(true);
     try {
-      // Map status to contract enum: Open=0, InProgress=1, Resolved=2, Closed=3
-      let statusIdx = 0;
-      if (newStatus === TicketStatus.IN_PROGRESS) statusIdx = 1;
-      else if (newStatus === TicketStatus.RESOLVED) statusIdx = 2;
-      else if (newStatus === TicketStatus.CLOSED) statusIdx = 3;
+      let tx;
       
-      // Use updateStatus with manual gas limit to avoid estimation issues
-      const tx = await contract.updateStatus(ticketId, statusIdx, { gasLimit: 100000 });
+      // Use dedicated contract functions for resolved and closed
+      if (newStatus === TicketStatus.RESOLVED) {
+        tx = await contract.resolveTicket(ticketId, { gasLimit: 100000 });
+      } else if (newStatus === TicketStatus.CLOSED) {
+        tx = await contract.closeTicket(ticketId, { gasLimit: 100000 });
+      } else {
+        // Map status to contract enum: Open=0, InProgress=1, Resolved=2, Closed=3
+        let statusIdx = 0;
+        if (newStatus === TicketStatus.IN_PROGRESS) statusIdx = 1;
+        tx = await contract.updateStatus(ticketId, statusIdx, { gasLimit: 100000 });
+      }
+      
       await tx.wait();
       addNotification({ type: 'success', title: 'Updated', message: `Status changed to ${newStatus}` });
       loadTicketDetails();

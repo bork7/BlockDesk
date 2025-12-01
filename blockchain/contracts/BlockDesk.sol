@@ -136,11 +136,10 @@ contract BlockDesk {
         );
 
         tickets[ticketId].status = TicketStatus.InProgress;
-        tickets[ticketId].assignedTo = msg.sender;
+        // Keep the same assignedTo - don't reassign on reopen
         tickets[ticketId].updatedAt = uint64(block.timestamp);
         
         emit TicketReopened(ticketId, msg.sender);
-        emit TicketAssigned(ticketId, msg.sender, msg.sender);
     }
     
     function addComment(uint256 ticketId, string memory content) external {
