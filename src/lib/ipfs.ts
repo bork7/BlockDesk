@@ -49,10 +49,8 @@ export async function uploadToIPFS(file: File): Promise<IPFSUploadResult> {
 
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINATA_JWT}`,
-    },
-    body: form,
+    headers: { Authorization: `Bearer ${PINATA_JWT}` },
+    body: form
   });
 
   if (!res.ok) throw new Error("Pinata file upload failed");
@@ -60,7 +58,7 @@ export async function uploadToIPFS(file: File): Promise<IPFSUploadResult> {
   const data = await res.json();
   return {
     hash: data.IpfsHash,
-    url: `${PINATA_GATEWAY}${data.IpfsHash}`,
+    url: getIPFSUrl(data.IpfsHash)
   };
 }
 
@@ -73,10 +71,8 @@ export async function uploadTextToIPFS(text: string) {
 
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINATA_JWT}`,
-    },
-    body: form,
+    headers: { Authorization: `Bearer ${PINATA_JWT}` },
+    body: form
   });
 
 /**
@@ -91,16 +87,15 @@ export async function uploadTextToIPFS(text: string): Promise<IPFSUploadResult> 
   const data = await res.json();
   return {
     hash: data.IpfsHash,
-    url: `${PINATA_GATEWAY}${data.IpfsHash}`,
+    url: getIPFSUrl(data.IpfsHash)
   };
 }
 
-export function getIPFSUrl(hash: string): string {
-  if (!hash) return "";
-  if (hash.startsWith("http")) return hash;
-  return `${PINATA_GATEWAY}${hash.replace("ipfs://", "")}`;
+export function isIPFSHash(str: string): boolean {
+  return /^[A-Za-z0-9]{46,}$/.test(str);
 }
 
-export function isIPFSHash(str: string): boolean {
-  return /^Qm[1-9A-Za-z]{44}|bafy[A-Za-z0-9]{50,}/.test(str);
+export function getIPFSUrl(cid: string): string {
+  if (!cid) return "";
+  return `${PINATA_GATEWAY}${cid}`;
 }
